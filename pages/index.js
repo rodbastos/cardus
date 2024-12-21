@@ -55,24 +55,45 @@ export default function Home() {
           },
         };
         dc.send(JSON.stringify(systemEvent));
-        
+      });
+
+      // 5b. Enviar mensagem inicial
+      dc.addEventListener("open", () => {
         const welcomeEvent = {
-          type: "response.create",
-          response: {
-            modalities: ["text"],
-            instructions: "Olá! Podemos começar a entrevista?",
+          type: "conversation.item.create",
+          item: {
+            type: "message",
+            role: "assistant",
+            content: [
+              {
+                type: "input_text",
+                text: "Olá! Podemos começar a entrevista?",
+              },
+            ],
           },
         };
         dc.send(JSON.stringify(welcomeEvent));
         addToConversationLog("assistant", "Olá! Podemos começar a entrevista?");
       });
 
-      // 5b. Ao receber mensagens do modelo
+      // 5c. Ao receber mensagens do modelo
       dc.addEventListener("message", (event) => {
         const data = JSON.parse(event.data);
-        const assistantMessage = data.response?.instructions || data.session?.instructions;
-        if (assistantMessage) {
-          addToConversationLog("assistant", assistantMessage);
+
+        // Registro de mensagens do assistente
+        if (data.type === "response.done" && data.response?.output) {
+          const assistantMessage = data.response.output[0]?.text;
+          if (assistantMessage) {
+            addToConversationLog("assistant", assistantMessage);
+          }
+        }
+
+        // Registro de mensagens do usuário
+        if (data.type === "conversation.item.created" && data.item?.role === "user") {
+          const userMessage = data.item.content[0]?.text;
+          if (userMessage) {
+            addToConversationLog("user", userMessage);
+          }
         }
 
         setIsAssistantSpeaking(true);
