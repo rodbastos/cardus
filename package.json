@@ -1,17 +1,14 @@
 {
   "name": "my-realtime-app",
   "version": "1.0.0",
-  "description": "Example Next.js + OpenAI Realtime WebRTC app",
-  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "next": "latest",
+    "next": "15.1.2",
     "react": "latest",
-    "react-dom": "latest",
-    "node-fetch": "latest"
+    "react-dom": "latest"
   }
 }
