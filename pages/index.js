@@ -11,9 +11,14 @@ export default function Home() {
   const micStreamRef = useRef(null);  // Stream do microfone
   const dataChannelRef = useRef(null);
 
-  // Referências e estados para gravação
-  const recorderRef = useRef(null);
-  const [downloadUrl, setDownloadUrl] = useState(null);
+  // Gravadores e Blobs de cada stream (usuário e assistente)
+  const userRecorderRef = useRef(null);
+  const assistantRecorderRef = useRef(null);
+
+  const [userDownloadUrl, setUserDownloadUrl] = useState(null);
+  const [assistantDownloadUrl, setAssistantDownloadUrl] = useState(null);
+
+  // Log da conversa (opcional, só para debug textual se ainda quiser ver eventos)
   const [conversationLog, setConversationLog] = useState([]);
 
   // ========================
@@ -21,7 +26,7 @@ export default function Home() {
   // ========================
   async function startRealtimeSession() {
     try {
-      // 1. Buscar token efêmero (client_secret)
+      // 1. Buscar token efêmero (client_secret) - ajuste conforme sua API
       const ephemeralResponse = await fetch("/api/session");
       const ephemeralData = await ephemeralResponse.json();
       const EPHEMERAL_KEY = ephemeralData.client_secret.value;
@@ -30,34 +35,60 @@ export default function Home() {
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
 
-      // 3. Criar elemento <audio> para reproduzir áudio remoto
-      const audioEl = document.createElement("audio");
-      audioEl.autoplay = true;
+      // 3. Criar elemento <audio> para reproduzir áudio remoto (assistente)
+      //    Assim que o "ontrack" disparar, vamos gravar esse fluxo.
+      const assistantAudioEl = document.createElement("audio");
+      assistantAudioEl.autoplay = true;
+
       pc.ontrack = (event) => {
-        audioEl.srcObject = event.streams[0];
+        // event.streams[0] é o áudio remoto vindo da OpenAI
+        assistantAudioEl.srcObject = event.streams[0];
+
+        // Iniciar gravação do áudio remoto do assistente
+        const assistantRecorder = new MediaRecorder(event.streams[0], {
+          mimeType: "audio/webm",
+        });
+
+        const assistantChunks = [];
+        assistantRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            assistantChunks.push(e.data);
+          }
+        };
+        assistantRecorder.onstop = () => {
+          const blob = new Blob(assistantChunks, { type: "audio/webm" });
+          const localUrl = URL.createObjectURL(blob);
+          setAssistantDownloadUrl(localUrl);
+        };
+
+        assistantRecorder.start();
+        assistantRecorderRef.current = assistantRecorder;
       };
 
       // 4. Obter microfone local
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       micStreamRef.current = micStream;
+
+      // Adiciona trilha de áudio local ao PC para enviar ao modelo
       pc.addTrack(micStream.getTracks()[0]);
 
-      // 5. Criar DataChannel
+      // 5. Criar DataChannel para troca de eventos (opcional, pois não transcrevemos)
       const dc = pc.createDataChannel("oai-events");
       dataChannelRef.current = dc;
 
-      // 5a. Quando o DC abrir
+      // 5a. Quando o DC abrir, enviar instruções do sistema (opcional)
       dc.addEventListener("open", () => {
         const systemEvent = {
           type: "session.update",
           session: {
-            instructions: "Você é um entrevistador chamado Cardus, interessado em coletar histórias e narrativas de pessoas que trabalham na TechFunction. Estimule o usuário a contar histórias, sem julgamentos. Tudo será anonimizado. Não ofereça soluções, apenas colete as histórias.",
+            instructions:
+              "Você é um entrevistador chamado Cardus. Apenas responda em voz, não vamos transcrever. Coletamos histórias sobre trabalho na TechFunction.",
           },
         };
         dc.send(JSON.stringify(systemEvent));
       });
 
-      // 5b. Enviar mensagem inicial
+      // 5b. Quando o DC abrir, enviar mensagem inicial (opcional)
       dc.addEventListener("open", () => {
         const welcomeEvent = {
           type: "conversation.item.create",
@@ -76,29 +107,21 @@ export default function Home() {
         addToConversationLog("assistant", "Olá! Podemos começar a entrevista?");
       });
 
-      // 5c. Ao receber mensagens do modelo
+      // 5c. Se quiser ainda ouvir algum evento textual do DataChannel
       dc.addEventListener("message", (event) => {
         const data = JSON.parse(event.data);
-        console.log("DataChannel message:", data); // <-- Add this to debug structure
-
-        // Registro de mensagens do assistente
-        if (data.type === "response.done" && data.response?.output) {
+        console.log("DataChannel message:", data);
+        // Exemplo: se houver algum output textual, logue aqui
+        if (data.response?.output) {
           const assistantMessage = data.response.output[0]?.text;
           if (assistantMessage) {
             addToConversationLog("assistant", assistantMessage);
           }
         }
 
-        // Registro de mensagens do usuário
-        if (data.type === "conversation.item.created" && data.item?.role === "user") {
-          const userMessage = data.item.content[0]?.text;
-          if (userMessage) {
-            addToConversationLog("user", userMessage);
-          }
-        }
-
+        // Pequeno feedback visual
         setIsAssistantSpeaking(true);
-        setTimeout(() => setIsAssistantSpeaking(false), 3000);
+        setTimeout(() => setIsAssistantSpeaking(false), 2000);
       });
 
       // 6. Criar offer e setar descrição local
@@ -122,26 +145,23 @@ export default function Home() {
       const answerSdp = await sdpResponse.text();
       await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
 
-      // 9. Iniciar gravação local do microfone
-      const mediaRecorder = new MediaRecorder(micStream, {
+      // 9. Iniciar gravação local do microfone (usuário)
+      const userRecorder = new MediaRecorder(micStream, {
         mimeType: "audio/webm",
       });
-
-      const chunks = [];
-      mediaRecorder.ondataavailable = (e) => {
+      const userChunks = [];
+      userRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
-          chunks.push(e.data);
+          userChunks.push(e.data);
         }
       };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "audio/webm" });
+      userRecorder.onstop = () => {
+        const blob = new Blob(userChunks, { type: "audio/webm" });
         const localUrl = URL.createObjectURL(blob);
-        setDownloadUrl(localUrl);
+        setUserDownloadUrl(localUrl);
       };
-
-      mediaRecorder.start();
-      recorderRef.current = mediaRecorder;
+      userRecorder.start();
+      userRecorderRef.current = userRecorder;
 
       setIsConnected(true);
     } catch (error) {
@@ -153,16 +173,28 @@ export default function Home() {
   // Encerrar sessão Realtime
   // ===========================
   function endInterview() {
+    // Fechar PeerConnection
     if (pcRef.current) {
       pcRef.current.close();
       pcRef.current = null;
     }
 
-    if (recorderRef.current && recorderRef.current.state === "recording") {
-      recorderRef.current.stop();
-      recorderRef.current = null;
+    // Parar gravação do usuário
+    if (userRecorderRef.current && userRecorderRef.current.state === "recording") {
+      userRecorderRef.current.stop();
+      userRecorderRef.current = null;
     }
 
+    // Parar gravação do assistente
+    if (
+      assistantRecorderRef.current &&
+      assistantRecorderRef.current.state === "recording"
+    ) {
+      assistantRecorderRef.current.stop();
+      assistantRecorderRef.current = null;
+    }
+
+    // Parar o microfone
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach((track) => track.stop());
       micStreamRef.current = null;
@@ -179,6 +211,7 @@ export default function Home() {
     setConversationLog((prev) => [...prev, { sender, message }]);
   }
 
+  // Para baixar o log em texto (se quiser)
   function downloadConversationLog() {
     const logContent = conversationLog
       .map((entry) => `${entry.sender}: ${entry.message}`)
@@ -231,29 +264,47 @@ export default function Home() {
         <div style={styles.interviewerBox}>
           <h2 style={{ marginBottom: "1rem" }}>Cardus (Entrevistador)</h2>
           <p>
-            Você é um entrevistado que trabalha em uma organização chamada TechFunction.
-            Estou interessado em coletar histórias e narrativas sobre sua experiência.
-            Essas narrativas serão usadas para entender o clima e a cultura organizacional.
-            Tudo será anonimizado, então fique tranquilo! Meu trabalho não é sugerir soluções,
-            apenas coletar histórias.
+            Vamos gravar dois fluxos: o seu (usuário) e o do assistente.
+            Não vamos transcrever, apenas salvar os áudios localmente.
           </p>
         </div>
 
-        {/* Link local para o áudio gravado */}
-        {downloadUrl && (
+        {/* Links para baixar ou reproduzir as gravações */}
+        {(userDownloadUrl || assistantDownloadUrl) && (
           <div style={styles.downloadContainer}>
-            <p>Áudio Gravado (Local):</p>
-            <audio controls src={downloadUrl} />
-            <br />
-            <a href={downloadUrl} download="entrevista.webm">
-              Baixar Arquivo WEBM
-            </a>
+            <h3>Gravações:</h3>
+            {userDownloadUrl && (
+              <div style={{ margin: "1rem 0" }}>
+                <strong>Áudio do Usuário (Local):</strong>
+                <audio controls src={userDownloadUrl} style={{ display: "block", marginTop: "0.5rem" }} />
+                <a href={userDownloadUrl} download="UserRecording.webm">
+                  Baixar UserRecording.webm
+                </a>
+              </div>
+            )}
+            {assistantDownloadUrl && (
+              <div style={{ margin: "1rem 0" }}>
+                <strong>Áudio do Assistente (Remoto):</strong>
+                <audio controls src={assistantDownloadUrl} style={{ display: "block", marginTop: "0.5rem" }} />
+                <a href={assistantDownloadUrl} download="AssistantRecording.webm">
+                  Baixar AssistantRecording.webm
+                </a>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Conversation Log Debug */}
-        <div style={{ textAlign: 'left', marginTop: '2rem', backgroundColor: '#2B2B2B', padding: '1rem', borderRadius: '6px' }}>
-          <h2 style={{ marginBottom: '1rem' }}>Conversation Log</h2>
+        {/* Conversation Log Debug (se quiser ver algum evento textual) */}
+        <div
+          style={{
+            textAlign: "left",
+            marginTop: "2rem",
+            backgroundColor: "#2B2B2B",
+            padding: "1rem",
+            borderRadius: "6px",
+          }}
+        >
+          <h2 style={{ marginBottom: "1rem" }}>Conversation Log (opcional)</h2>
           {conversationLog.map((entry, idx) => (
             <p key={idx}>
               <strong>{entry.sender}:</strong> {entry.message}
@@ -310,5 +361,6 @@ const styles = {
   },
   downloadContainer: {
     marginTop: "2rem",
+    textAlign: "left",
   },
 };
