@@ -9,8 +9,6 @@ export default function Home() {
   // Estados de controle
   const [isConnected, setIsConnected] = useState(false);
   const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
-  const [keyword, setKeyword] = useState("");
-  const [isKeywordValid, setIsKeywordValid] = useState(false);
 
   // Referências para WebRTC
   const pcRef = useRef(null);         // PeerConnection
@@ -27,8 +25,6 @@ export default function Home() {
   // Iniciar sessão Realtime
   // ========================
   async function startRealtimeSession() {
-    if (!isKeywordValid) return; // Verifica se a palavra-chave é válida
-
     try {
       const ephemeralResponse = await fetch("/api/session");
       const ephemeralData = await ephemeralResponse.json();
@@ -100,13 +96,6 @@ export default function Home() {
     }
   }
 
-  // Função para verificar a palavra-chave
-  function handleKeywordChange(e) {
-    const input = e.target.value;
-    setKeyword(input);
-    setIsKeywordValid(input === "falecardus");
-  }
-
   // ===========================
   // Encerrar sessão Realtime
   // ===========================
@@ -155,18 +144,10 @@ export default function Home() {
       <div style={styles.content}>
         <h1 style={styles.title}>Cardus Realtime Interview + Firebase</h1>
 
-        <input
-          type="text"
-          value={keyword}
-          onChange={handleKeywordChange}
-          placeholder="Digite a palavra-chave"
-          style={{ marginBottom: "1rem", padding: "0.5rem", borderRadius: "4px", border: "1px solid #ccc" }}
-        />
-
-        <div style={{ marginBottom: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+        <div style={styles.buttonContainer}>
           <button
             onClick={startRealtimeSession}
-            disabled={!isKeywordValid || isConnected}
+            disabled={isConnected}
             style={styles.button}
           >
             {isConnected ? "Conectado!" : "Iniciar Realtime Chat"}
@@ -213,6 +194,11 @@ const styles = {
   },
   title: {
     marginBottom: "1rem",
+  },
+  buttonContainer: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "1rem",
   },
   button: {
     backgroundColor: "#00FFFF",
