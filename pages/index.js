@@ -170,7 +170,7 @@ export default function Home() {
       </div>
 
       <div style={styles.content}>
-        <h1 style={styles.title}>Cardus Realtime Interview (Áudio Combinado)</h1>
+        <h1 style={styles.title}>Cardus Realtime Interview</h1>
 
         <div
           style={{
@@ -202,17 +202,17 @@ export default function Home() {
         </div>
 
         <div style={styles.interviewerBox}>
-          <h2 style={{ marginBottom: "1rem" }}>Cardus (Entrevistador)</h2>
+          <h3 style={{ marginBottom: "1rem" }}>Versão Aplha</h3>
           <p>
-            Este exemplo grava <strong>usuário e assistente</strong> em um
-            único arquivo de áudio <em>(.webm)</em> via Web Audio API, sem transcrição.
+            Este exemplo grava a entrevista em um arquivo
+            de áudio (.webm) que pode ser baixado após a entrevista.
           </p>
         </div>
 
         {/* Link para o áudio combinado */}
         {combinedDownloadUrl && (
           <div style={styles.downloadContainer}>
-            <h3>Gravação Combinada (Usuário + Assistente):</h3>
+            <h3>Gravação da Entrevista:</h3>
             <audio controls src={combinedDownloadUrl} style={{ display: "block", marginTop: "0.5rem" }} />
             <a href={combinedDownloadUrl} download="Recording.webm">
               Baixar Recording.webm
