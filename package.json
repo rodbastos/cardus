@@ -1,12 +1,20 @@
 {
+  "name": "cardus",
+  "version": "0.1.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    // Next.js 15.1.2 (conforme o log do seu build)
+    "next": "15.1.2",
+
+    // React e React DOM (versão compatível com seu Next.js)
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+
+    // Firebase (para usar "firebase/app", "firebase/storage", etc.)
+    "firebase": "^9.23.0"
   }
 }
