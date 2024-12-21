@@ -6,15 +6,10 @@
     "build": "next build",
     "start": "next start"
   },
-  "dependencies": {
-    // Next.js 15.1.2 (conforme o log do seu build)
+ "dependencies": {
     "next": "15.1.2",
-
-    // React e React DOM (versão compatível com seu Next.js)
     "react": "18.2.0",
     "react-dom": "18.2.0",
-
-    // Firebase (para usar "firebase/app", "firebase/storage", etc.)
     "firebase": "^9.23.0"
   }
 }
