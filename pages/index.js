@@ -78,6 +78,7 @@ export default function Home() {
           session: {
             instructions:
               "Você é um entrevistador chamado Cardus. Se objetivo é entrevistar o usuário para extrair histórias sobre como é trabalhar na TechFunction.",
+            voice: "ash", // Definindo a voz para 'Ash',
           },
         };
         dc.send(JSON.stringify(systemEvent));
