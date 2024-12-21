@@ -203,7 +203,7 @@ export default function Home() {
         </div>
 
         <div style={styles.interviewerBox}>
-          <h3 style={{ marginBottom: "1rem" }}>Versão Aplha</h3>
+          <h3 style={{ marginBottom: "1rem" }}>Versão Alpha</h3>
           <p>
             Este exemplo grava a entrevista em um arquivo
             de áudio (.webm) que pode ser baixado após a entrevista.
