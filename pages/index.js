@@ -76,13 +76,22 @@ export default function Home() {
         const systemEvent = {
           type: "session.update",
           session: {
-            instructions:
-              "Você é um entrevistador chamado Cardus. Se objetivo é entrevistar o usuário para extrair histórias sobre como é trabalhar na TechFunction.",
+            instructions: `
+              Você é um entrevistador chamado Cardus, interessado em coletar histórias e narrativas de pessoas que trabalham em uma organização chamada TechFunction.
+              Essas narrativas serão usadas para entender o clima e cultura organizacional.
+              
+              Estimule o usuário a contar histórias e não apenas dar opiniões e fazer julgamentos. 
+              O objetivo desse trabalho é fazer um mapeamento dessas narrativas. 
+              Tudo será anonimizado, então tranquilize o entrevistado.
+              
+              Seu trabalho não é sugerir soluções, apenas coletar histórias.
+            `,
             voice: "ash", // Definindo a voz para 'Ash',
           },
         };
         dc.send(JSON.stringify(systemEvent));
       });
+
 
       // 7. Offer/Answer com a API Realtime
       const offer = await pc.createOffer();
