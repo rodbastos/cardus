@@ -48,6 +48,14 @@ export default function Home() {
 
       // 5a. Quando o DC abrir
       dc.addEventListener("open", () => {
+        const systemEvent = {
+          type: "session.update",
+          session: {
+            instructions: "Você é um entrevistador chamado Cardus, interessado em coletar histórias e narrativas de pessoas que trabalham na TechFunction. Estimule o usuário a contar histórias, sem julgamentos. Tudo será anonimizado. Não ofereça soluções, apenas colete as histórias.",
+          },
+        };
+        dc.send(JSON.stringify(systemEvent));
+        
         const welcomeEvent = {
           type: "response.create",
           response: {
@@ -62,7 +70,7 @@ export default function Home() {
       // 5b. Ao receber mensagens do modelo
       dc.addEventListener("message", (event) => {
         const data = JSON.parse(event.data);
-        const assistantMessage = data.response?.instructions;
+        const assistantMessage = data.response?.instructions || data.session?.instructions;
         if (assistantMessage) {
           addToConversationLog("assistant", assistantMessage);
         }
