@@ -1,4 +1,5 @@
-// components/TargetTealLogo.jsx
+// pages/TargetTealLogo.jsx
+
 export default function TargetTealLogo({ isSpeaking }) {
   return (
     <div
@@ -10,7 +11,6 @@ export default function TargetTealLogo({ isSpeaking }) {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        // Dark background "cuts out" the rest
         backgroundColor: "transparent",
         borderRadius: "50%",
         boxShadow: isSpeaking
@@ -19,7 +19,6 @@ export default function TargetTealLogo({ isSpeaking }) {
         transition: "box-shadow 0.3s ease-in-out",
       }}
     >
-      {/* Use your actual SVG file here */}
       <img
         src="/logo-icone-tt.svg"
         alt="Target Teal"
