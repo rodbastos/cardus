@@ -1,10 +1,6 @@
 import { useState, useRef } from "react";
 import TargetTealLogo from "./TargetTealLogo";
 
-// Se estiver usando o Firebase
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { storage } from "../lib/firebase";
-
 export default function Home() {
   // Estados de controle
   const [isConnected, setIsConnected] = useState(false);
@@ -18,8 +14,7 @@ export default function Home() {
   // Referências e estados para gravação
   const recorderRef = useRef(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [firebaseUrl, setFirebaseUrl] = useState(null);
+  const [conversationLog, setConversationLog] = useState([]);
 
   // ========================
   // Iniciar sessão Realtime
@@ -45,32 +40,14 @@ export default function Home() {
       // 4. Obter microfone local
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       micStreamRef.current = micStream;
-      // Adicionar track do microfone ao PeerConnection
       pc.addTrack(micStream.getTracks()[0]);
 
-      // 5. Criar DataChannel (para enviar e receber eventos de texto)
+      // 5. Criar DataChannel
       const dc = pc.createDataChannel("oai-events");
       dataChannelRef.current = dc;
 
-      // 5a. Quando o DC abrir, enviamos system prompt (Cardus)
+      // 5a. Quando o DC abrir
       dc.addEventListener("open", () => {
-        console.log("[DataChannel] Aberto! Enviando system prompt...");
-
-        // System prompt via session.update
-        const systemEvent = {
-          type: "session.update",
-          session: {
-            instructions: `
-              Você é um entrevistador chamado Cardus, interessado em coletar histórias
-              e narrativas de pessoas que trabalham na TechFunction. 
-              Estimule o usuário a contar histórias, sem julgamentos. 
-              Tudo será anonimizado. Não ofereça soluções, apenas colete as histórias.
-            `,
-          },
-        };
-        dc.send(JSON.stringify(systemEvent));
-
-        // Opcional: mandar um response.create para iniciar a conversa
         const welcomeEvent = {
           type: "response.create",
           response: {
@@ -79,13 +56,17 @@ export default function Home() {
           },
         };
         dc.send(JSON.stringify(welcomeEvent));
+        addToConversationLog("assistant", "Olá! Podemos começar a entrevista?");
       });
 
       // 5b. Ao receber mensagens do modelo
       dc.addEventListener("message", (event) => {
-        console.log("Recebido do modelo:", event.data);
+        const data = JSON.parse(event.data);
+        const assistantMessage = data.response?.instructions;
+        if (assistantMessage) {
+          addToConversationLog("assistant", assistantMessage);
+        }
 
-        // Indicamos que o assistente (modelo) "está falando"
         setIsAssistantSpeaking(true);
         setTimeout(() => setIsAssistantSpeaking(false), 3000);
       });
@@ -123,25 +104,16 @@ export default function Home() {
         }
       };
 
-      // Quando parar a gravação
       mediaRecorder.onstop = () => {
-        console.log("[MediaRecorder] Parou gravação. Gerando Blob...");
         const blob = new Blob(chunks, { type: "audio/webm" });
-
-        // Gerar URL local p/ download
         const localUrl = URL.createObjectURL(blob);
         setDownloadUrl(localUrl);
-
-        // (Opcional) Upload no Firebase
-        uploadToFirebase(blob);
       };
 
       mediaRecorder.start();
       recorderRef.current = mediaRecorder;
 
-      // Final: estamos conectados
       setIsConnected(true);
-      console.log("Conectado ao Realtime API via WebRTC");
     } catch (error) {
       console.error("Erro ao iniciar sessão:", error);
     }
@@ -151,59 +123,41 @@ export default function Home() {
   // Encerrar sessão Realtime
   // ===========================
   function endInterview() {
-    console.log("[endInterview] Iniciando encerramento...");
-
-    // 1. Fechar PeerConnection
     if (pcRef.current) {
-      console.log("Fechando PeerConnection...");
       pcRef.current.close();
       pcRef.current = null;
     }
 
-    // 2. Parar gravação (se estiver gravando)
     if (recorderRef.current && recorderRef.current.state === "recording") {
-      console.log("Parando MediaRecorder...");
       recorderRef.current.stop();
       recorderRef.current = null;
     }
 
-    // 3. Parar as tracks do microfone
     if (micStreamRef.current) {
-      console.log("Parando tracks do microfone...");
       micStreamRef.current.getTracks().forEach((track) => track.stop());
       micStreamRef.current = null;
     }
 
-    // Resetar estado
     setIsConnected(false);
     setIsAssistantSpeaking(false);
-
-    console.log("Entrevista encerrada com sucesso.");
   }
 
-  // ================
-  // Upload Firebase
-  // ================
-  async function uploadToFirebase(blob) {
-    try {
-      const fileName = `entrevistas/entrevista-${Date.now()}.webm`;
-      const fileRef = ref(storage, fileName);
+  // ===========================
+  // Gerar log da conversa
+  // ===========================
+  function addToConversationLog(sender, message) {
+    setConversationLog((prev) => [...prev, { sender, message }]);
+  }
 
-      const uploadTask = uploadBytesResumable(fileRef, blob);
-
-      uploadTask.on("state_changed", (snapshot) => {
-        const percent = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(percent.toFixed(0));
-      });
-
-      // Esperar finalizar
-      const snapshot = await uploadTask;
-      const fbUrl = await getDownloadURL(snapshot.ref);
-      setFirebaseUrl(fbUrl);
-      console.log("Arquivo enviado ao Firebase:", fbUrl);
-    } catch (err) {
-      console.error("Erro ao enviar ao Firebase:", err);
-    }
+  function downloadConversationLog() {
+    const logContent = conversationLog
+      .map((entry) => `${entry.sender}: ${entry.message}`)
+      .join("\n");
+    const blob = new Blob([logContent], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "conversation_log.txt";
+    link.click();
   }
 
   return (
@@ -213,7 +167,7 @@ export default function Home() {
       </div>
 
       <div style={styles.content}>
-        <h1 style={styles.title}>Cardus Realtime Interview + Firebase</h1>
+        <h1 style={styles.title}>Cardus Realtime Interview</h1>
 
         <div style={{ marginBottom: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
           <button
@@ -234,15 +188,23 @@ export default function Home() {
           >
             Encerrar Entrevista
           </button>
+
+          <button
+            onClick={downloadConversationLog}
+            style={styles.button}
+            disabled={conversationLog.length === 0}
+          >
+            Baixar Log da Conversa
+          </button>
         </div>
 
         <div style={styles.interviewerBox}>
           <h2 style={{ marginBottom: "1rem" }}>Cardus (Entrevistador)</h2>
           <p>
-            Você é um entrevistado que trabalha em uma organização chamada TechFunction. 
-            Estou interessado em coletar histórias e narrativas sobre sua experiência. 
-            Essas narrativas serão usadas para entender o clima e a cultura organizacional. 
-            Tudo será anonimizado, então fique tranquilo! Meu trabalho não é sugerir soluções, 
+            Você é um entrevistado que trabalha em uma organização chamada TechFunction.
+            Estou interessado em coletar histórias e narrativas sobre sua experiência.
+            Essas narrativas serão usadas para entender o clima e a cultura organizacional.
+            Tudo será anonimizado, então fique tranquilo! Meu trabalho não é sugerir soluções,
             apenas coletar histórias.
           </p>
         </div>
@@ -256,26 +218,6 @@ export default function Home() {
             <a href={downloadUrl} download="entrevista.webm">
               Baixar Arquivo WEBM
             </a>
-          </div>
-        )}
-
-        {/* Progresso de upload */}
-        {uploadProgress > 0 && uploadProgress < 100 && (
-          <p style={{ marginTop: "1rem" }}>
-            Enviando ao Firebase: {uploadProgress}%
-          </p>
-        )}
-        {uploadProgress === "100" && <p>Upload Concluído!</p>}
-
-        {/* Link final no Firebase */}
-        {firebaseUrl && (
-          <div style={styles.downloadContainer}>
-            <p>Link no Firebase:</p>
-            <a href={firebaseUrl} target="_blank" rel="noreferrer">
-              {firebaseUrl}
-            </a>
-            <br />
-            <audio controls src={firebaseUrl} />
           </div>
         )}
       </div>
