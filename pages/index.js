@@ -1,6 +1,6 @@
 // pages/index.js
 import { useState } from "react";
-import TargetTealLogo from "./TargetTealLogo"; // Adjust if needed
+import TargetTealLogo from "./TargetTealLogo"; // Notice the relative import
 
 export default function Home() {
   const [isConnected, setIsConnected] = useState(false);
@@ -33,8 +33,7 @@ export default function Home() {
         console.log("Received from model:", event.data);
         // Indicate the assistant is speaking
         setIsAssistantSpeaking(true);
-
-        // Turn off the glow after a short delay
+        // Turn off glow after a brief delay
         setTimeout(() => setIsAssistantSpeaking(false), 3000);
       });
 
@@ -59,7 +58,7 @@ export default function Home() {
       const answerSdp = await sdpResponse.text();
       await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
 
-      // 9. Optional: send an example event to the model
+      // 9. (Optional) send an example event to the model
       const exampleEvent = {
         type: "response.create",
         response: {
