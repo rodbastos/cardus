@@ -26,33 +26,75 @@ export default function Home() {
   // ========================
   async function startRealtimeSession() {
     try {
+      // 1. Buscar token efêmero (client_secret)
       const ephemeralResponse = await fetch("/api/session");
       const ephemeralData = await ephemeralResponse.json();
       const EPHEMERAL_KEY = ephemeralData.client_secret.value;
 
+      // 2. Criar PeerConnection
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
 
+      // 3. Criar elemento <audio> para reproduzir áudio remoto
       const audioEl = document.createElement("audio");
       audioEl.autoplay = true;
       pc.ontrack = (event) => {
         audioEl.srcObject = event.streams[0];
       };
 
+      // 4. Obter microfone local
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       micStreamRef.current = micStream;
+      // Adicionar track do microfone ao PeerConnection
       pc.addTrack(micStream.getTracks()[0]);
 
+      // 5. Criar DataChannel (para enviar e receber eventos de texto)
       const dc = pc.createDataChannel("oai-events");
       dataChannelRef.current = dc;
 
+      // 5a. Quando o DC abrir, enviamos system prompt (Cardus)
       dc.addEventListener("open", () => {
-        console.log("[DataChannel] Aberto!");
+        console.log("[DataChannel] Aberto! Enviando system prompt...");
+
+        // System prompt via session.update
+        const systemEvent = {
+          type: "session.update",
+          session: {
+            instructions: `
+              Você é um entrevistador chamado Cardus, interessado em coletar histórias
+              e narrativas de pessoas que trabalham na TechFunction. 
+              Estimule o usuário a contar histórias, sem julgamentos. 
+              Tudo será anonimizado. Não ofereça soluções, apenas colete as histórias.
+            `,
+          },
+        };
+        dc.send(JSON.stringify(systemEvent));
+
+        // Opcional: mandar um response.create para iniciar a conversa
+        const welcomeEvent = {
+          type: "response.create",
+          response: {
+            modalities: ["text"],
+            instructions: "Olá! Podemos começar a entrevista?",
+          },
+        };
+        dc.send(JSON.stringify(welcomeEvent));
       });
 
+      // 5b. Ao receber mensagens do modelo
+      dc.addEventListener("message", (event) => {
+        console.log("Recebido do modelo:", event.data);
+
+        // Indicamos que o assistente (modelo) "está falando"
+        setIsAssistantSpeaking(true);
+        setTimeout(() => setIsAssistantSpeaking(false), 3000);
+      });
+
+      // 6. Criar offer e setar descrição local
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
+      // 7. Enviar offer para a OpenAI Realtime
       const baseUrl = "https://api.openai.com/v1/realtime";
       const model = "gpt-4o-realtime-preview-2024-12-17";
 
@@ -65,9 +107,11 @@ export default function Home() {
         body: offer.sdp,
       });
 
+      // 8. Receber answer e setar descrição remota
       const answerSdp = await sdpResponse.text();
       await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
 
+      // 9. Iniciar gravação local do microfone
       const mediaRecorder = new MediaRecorder(micStream, {
         mimeType: "audio/webm",
       });
@@ -79,16 +123,23 @@ export default function Home() {
         }
       };
 
+      // Quando parar a gravação
       mediaRecorder.onstop = () => {
+        console.log("[MediaRecorder] Parou gravação. Gerando Blob...");
         const blob = new Blob(chunks, { type: "audio/webm" });
+
+        // Gerar URL local p/ download
         const localUrl = URL.createObjectURL(blob);
         setDownloadUrl(localUrl);
+
+        // (Opcional) Upload no Firebase
         uploadToFirebase(blob);
       };
 
       mediaRecorder.start();
       recorderRef.current = mediaRecorder;
 
+      // Final: estamos conectados
       setIsConnected(true);
       console.log("Conectado ao Realtime API via WebRTC");
     } catch (error) {
@@ -100,16 +151,34 @@ export default function Home() {
   // Encerrar sessão Realtime
   // ===========================
   function endInterview() {
-    if (pcRef.current) pcRef.current.close();
-    if (recorderRef.current && recorderRef.current.state === "recording") {
-      recorderRef.current.stop();
-    }
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((track) => track.stop());
+    console.log("[endInterview] Iniciando encerramento...");
+
+    // 1. Fechar PeerConnection
+    if (pcRef.current) {
+      console.log("Fechando PeerConnection...");
+      pcRef.current.close();
+      pcRef.current = null;
     }
 
+    // 2. Parar gravação (se estiver gravando)
+    if (recorderRef.current && recorderRef.current.state === "recording") {
+      console.log("Parando MediaRecorder...");
+      recorderRef.current.stop();
+      recorderRef.current = null;
+    }
+
+    // 3. Parar as tracks do microfone
+    if (micStreamRef.current) {
+      console.log("Parando tracks do microfone...");
+      micStreamRef.current.getTracks().forEach((track) => track.stop());
+      micStreamRef.current = null;
+    }
+
+    // Resetar estado
     setIsConnected(false);
     setIsAssistantSpeaking(false);
+
+    console.log("Entrevista encerrada com sucesso.");
   }
 
   // ================
@@ -127,9 +196,11 @@ export default function Home() {
         setUploadProgress(percent.toFixed(0));
       });
 
+      // Esperar finalizar
       const snapshot = await uploadTask;
       const fbUrl = await getDownloadURL(snapshot.ref);
       setFirebaseUrl(fbUrl);
+      console.log("Arquivo enviado ao Firebase:", fbUrl);
     } catch (err) {
       console.error("Erro ao enviar ao Firebase:", err);
     }
@@ -144,7 +215,7 @@ export default function Home() {
       <div style={styles.content}>
         <h1 style={styles.title}>Cardus Realtime Interview + Firebase</h1>
 
-        <div style={styles.buttonContainer}>
+        <div style={{ marginBottom: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
           <button
             onClick={startRealtimeSession}
             disabled={isConnected}
@@ -164,6 +235,49 @@ export default function Home() {
             Encerrar Entrevista
           </button>
         </div>
+
+        <div style={styles.interviewerBox}>
+          <h2 style={{ marginBottom: "1rem" }}>Cardus (Entrevistador)</h2>
+          <p>
+            Você é um entrevistado que trabalha em uma organização chamada TechFunction. 
+            Estou interessado em coletar histórias e narrativas sobre sua experiência. 
+            Essas narrativas serão usadas para entender o clima e a cultura organizacional. 
+            Tudo será anonimizado, então fique tranquilo! Meu trabalho não é sugerir soluções, 
+            apenas coletar histórias.
+          </p>
+        </div>
+
+        {/* Link local para o áudio gravado */}
+        {downloadUrl && (
+          <div style={styles.downloadContainer}>
+            <p>Áudio Gravado (Local):</p>
+            <audio controls src={downloadUrl} />
+            <br />
+            <a href={downloadUrl} download="entrevista.webm">
+              Baixar Arquivo WEBM
+            </a>
+          </div>
+        )}
+
+        {/* Progresso de upload */}
+        {uploadProgress > 0 && uploadProgress < 100 && (
+          <p style={{ marginTop: "1rem" }}>
+            Enviando ao Firebase: {uploadProgress}%
+          </p>
+        )}
+        {uploadProgress === "100" && <p>Upload Concluído!</p>}
+
+        {/* Link final no Firebase */}
+        {firebaseUrl && (
+          <div style={styles.downloadContainer}>
+            <p>Link no Firebase:</p>
+            <a href={firebaseUrl} target="_blank" rel="noreferrer">
+              {firebaseUrl}
+            </a>
+            <br />
+            <audio controls src={firebaseUrl} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -195,11 +309,6 @@ const styles = {
   title: {
     marginBottom: "1rem",
   },
-  buttonContainer: {
-    display: "flex",
-    justifyContent: "center",
-    gap: "1rem",
-  },
   button: {
     backgroundColor: "#00FFFF",
     color: "#000",
@@ -209,5 +318,15 @@ const styles = {
     cursor: "pointer",
     fontWeight: "bold",
     minWidth: "200px",
+  },
+  interviewerBox: {
+    textAlign: "left",
+    backgroundColor: "#2B2B2B",
+    padding: "1rem",
+    borderRadius: "6px",
+    marginTop: "1rem",
+  },
+  downloadContainer: {
+    marginTop: "2rem",
   },
 };
