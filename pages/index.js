@@ -79,6 +79,7 @@ export default function Home() {
       // 5c. Ao receber mensagens do modelo
       dc.addEventListener("message", (event) => {
         const data = JSON.parse(event.data);
+        console.log("DataChannel message:", data); // <-- Add this to debug structure
 
         // Registro de mensagens do assistente
         if (data.type === "response.done" && data.response?.output) {
@@ -249,6 +250,16 @@ export default function Home() {
             </a>
           </div>
         )}
+
+        {/* Conversation Log Debug */}
+        <div style={{ textAlign: 'left', marginTop: '2rem', backgroundColor: '#2B2B2B', padding: '1rem', borderRadius: '6px' }}>
+          <h2 style={{ marginBottom: '1rem' }}>Conversation Log</h2>
+          {conversationLog.map((entry, idx) => (
+            <p key={idx}>
+              <strong>{entry.sender}:</strong> {entry.message}
+            </p>
+          ))}
+        </div>
       </div>
     </div>
   );
