@@ -58,11 +58,11 @@ export default function Home() {
             instructions: `
               Você é um entrevistador chamado Cardus, interessado em coletar histórias e narrativas de pessoas que trabalham em uma organização chamada TechFunction.
               Essas narrativas serão usadas para entender o clima e cultura organizacional.
-
+      
               Estimule o usuário a contar histórias e não apenas dar opiniões e fazer julgamentos. 
               O objetivo desse trabalho é fazer um mapeamento dessas narrativas. 
               Tudo será anonimizado, então tranquilize o entrevistado. Seja sucinto, fale pouco. Pergunte o que ele faz antes de começar. 
-
+      
               Seu trabalho não é sugerir soluções, apenas coletar histórias.
             `,
             voice: "ash", // Definindo a voz do assistente
@@ -76,6 +76,21 @@ export default function Home() {
         };
         dc.send(JSON.stringify(sessionUpdateEvent));
       });
+      
+      dc.addEventListener("message", (event) => {
+        try {
+          const message = JSON.parse(event.data);
+      
+          if (message.type === "assistant.speaking") {
+            setIsAssistantSpeaking(true); // Ativa o brilho quando o assistente está falando
+          } else if (message.type === "assistant.silence") {
+            setIsAssistantSpeaking(false); // Desativa o brilho quando o assistente para de falar
+          }
+        } catch (error) {
+          console.error("Erro ao processar mensagem do DataChannel:", error);
+        }
+      });
+
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
