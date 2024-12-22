@@ -87,6 +87,7 @@ export default function Home() {
               Comece perguntando sobre sua rotina ou tipo de trabalho, depois pergunte por histórias. Seu trabalho não é sugerir soluções, apenas coletar histórias. Não interrompa o usuário. 
             `,
             voice: "ash", // Definindo a voz para 'Ash',
+            silence_duration_ms: 800
           },
         };
         dc.send(JSON.stringify(systemEvent));
