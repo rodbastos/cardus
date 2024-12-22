@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import TargetTealLogo from "./TargetTealLogo";
+import './styles.css';
 
 export default function Home() {
   const [isConnected, setIsConnected] = useState(false);
@@ -151,13 +152,8 @@ export default function Home() {
   return (
     <div style={styles.container}>
       <div
-        style={{
-          ...styles.logoContainer,
-          boxShadow: isAssistantSpeaking
-            ? "0 0 20px 5px rgba(0, 255, 255, 0.8)"
-            : "none",
-          transition: "box-shadow 0.3s ease-in-out",
-        }}
+        className={isAssistantSpeaking ? "logo-speaking" : "logo-default"}
+        style={styles.logoContainer}
       >
         <TargetTealLogo isSpeaking={isAssistantSpeaking} />
       </div>
@@ -268,3 +264,4 @@ const styles = {
     textAlign: "left",
   },
 };
+
