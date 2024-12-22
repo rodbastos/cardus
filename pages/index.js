@@ -8,6 +8,7 @@ export default function Home() {
   const pcRef = useRef(null);
   const micStreamRef = useRef(null);
   const dataChannelRef = useRef(null);
+  const speakingTimeoutRef = useRef(null);
 
   const audioContextRef = useRef(null);
   const destinationRef = useRef(null);
@@ -58,11 +59,11 @@ export default function Home() {
             instructions: `
               Você é um entrevistador chamado Cardus, interessado em coletar histórias e narrativas de pessoas que trabalham em uma organização chamada TechFunction.
               Essas narrativas serão usadas para entender o clima e cultura organizacional.
-      
+
               Estimule o usuário a contar histórias e não apenas dar opiniões e fazer julgamentos. 
               O objetivo desse trabalho é fazer um mapeamento dessas narrativas. 
               Tudo será anonimizado, então tranquilize o entrevistado. Seja sucinto, fale pouco. Pergunte o que ele faz antes de começar. 
-      
+
               Seu trabalho não é sugerir soluções, apenas coletar histórias.
             `,
             voice: "ash", // Definindo a voz do assistente
@@ -80,27 +81,22 @@ export default function Home() {
       dc.addEventListener("message", (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log("Mensagem recebida:", message); // Para depuração
-      
-          // Verificar se é uma transcrição delta (assistente falando)
+
           if (message.type === "response.audio_transcript.delta") {
             setIsAssistantSpeaking(true);
-      
-            // Reinicia um timer para desativar o estado após pausa
-            if (dataChannelRef.current.speakingTimeout) {
-              clearTimeout(dataChannelRef.current.speakingTimeout);
+
+            // Reinicia o timer para garantir que o brilho dure até o áudio terminar
+            if (speakingTimeoutRef.current) {
+              clearTimeout(speakingTimeoutRef.current);
             }
-      
-            dataChannelRef.current.speakingTimeout = setTimeout(() => {
-              setIsAssistantSpeaking(false); // Desativa após 1 segundo de inatividade
-            }, 1000);
+            speakingTimeoutRef.current = setTimeout(() => {
+              setIsAssistantSpeaking(false);
+            }, 2000); // Duração extra de 2 segundos para acomodar o atraso do áudio
           }
         } catch (error) {
           console.error("Erro ao processar mensagem do DataChannel:", error);
         }
       });
-      
-
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -176,12 +172,12 @@ export default function Home() {
   return (
     <div style={styles.container}>
       <div
-        className={isAssistantSpeaking ? "logo-speaking" : "logo-default"}
         style={{
           ...styles.logoContainer,
           boxShadow: isAssistantSpeaking
-            ? "0 0 20px 5px rgba(0, 255, 255, 0.8)"
+            ? "0 0 40px 10px rgba(0, 255, 255, 0.8)"
             : "none",
+          borderRadius: "50%", // Garante que o brilho seja circular
           transition: "box-shadow 0.3s ease-in-out",
         }}
       >
@@ -217,17 +213,6 @@ export default function Home() {
             }}
           >
             Encerrar Entrevista
-          </button>
-
-          {/* Botão temporário para alternar brilho */}
-          <button
-            onClick={() => setIsAssistantSpeaking((prev) => !prev)}
-            style={{
-              ...styles.button,
-              backgroundColor: isAssistantSpeaking ? "#AAFFAA" : "#AAAAFF",
-            }}
-          >
-            Alternar Brilho
           </button>
         </div>
 
@@ -270,6 +255,11 @@ const styles = {
   },
   logoContainer: {
     marginBottom: "2rem",
+    width: "150px",
+    height: "150px",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
     maxWidth: "600px",
@@ -305,15 +295,3 @@ const styles = {
     textAlign: "left",
   },
 };
-
-// Add these styles to your CSS file
-/* 
-.logo-speaking {
-  box-shadow: 0 0 20px 5px rgba(0, 255, 255, 0.8);
-  transition: box-shadow 0.3s ease-in-out;
-}
-
-.logo-default {
-  transition: box-shadow 0.3s ease-in-out;
-}
-*/
