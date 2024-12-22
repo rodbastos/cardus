@@ -1,0 +1,8 @@
+.logo-speaking {
+  box-shadow: 0 0 20px 5px rgba(0, 255, 255, 0.8);
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+.logo-default {
+  transition: box-shadow 0.3s ease-in-out;
+}
