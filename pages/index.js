@@ -78,21 +78,28 @@ export default function Home() {
       });
 
       dc.addEventListener("message", (event) => {
-  try {
-    const message = JSON.parse(event.data);
-    console.log("Mensagem recebida:", message); // Adicionado para depuração
-    
-    if (message.type === "assistant.speaking") {
-      console.log("Assistente está falando...");
-      setIsAssistantSpeaking(true); // Ativa o brilho
-    } else if (message.type === "assistant.silence") {
-      console.log("Assistente está em silêncio...");
-      setIsAssistantSpeaking(false); // Desativa o brilho
-    }
-  } catch (error) {
-    console.error("Erro ao processar mensagem do DataChannel:", error);
-  }
-});
+        try {
+          const message = JSON.parse(event.data);
+          console.log("Mensagem recebida:", message); // Para depuração
+      
+          // Verificar se é uma transcrição delta (assistente falando)
+          if (message.type === "response.audio_transcript.delta") {
+            setIsAssistantSpeaking(true);
+      
+            // Reinicia um timer para desativar o estado após pausa
+            if (dataChannelRef.current.speakingTimeout) {
+              clearTimeout(dataChannelRef.current.speakingTimeout);
+            }
+      
+            dataChannelRef.current.speakingTimeout = setTimeout(() => {
+              setIsAssistantSpeaking(false); // Desativa após 1 segundo de inatividade
+            }, 1000);
+          }
+        } catch (error) {
+          console.error("Erro ao processar mensagem do DataChannel:", error);
+        }
+      });
+      
 
 
       const offer = await pc.createOffer();
