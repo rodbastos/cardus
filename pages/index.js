@@ -76,20 +76,23 @@ export default function Home() {
         };
         dc.send(JSON.stringify(sessionUpdateEvent));
       });
-      
+
       dc.addEventListener("message", (event) => {
-        try {
-          const message = JSON.parse(event.data);
-      
-          if (message.type === "assistant.speaking") {
-            setIsAssistantSpeaking(true); // Ativa o brilho quando o assistente está falando
-          } else if (message.type === "assistant.silence") {
-            setIsAssistantSpeaking(false); // Desativa o brilho quando o assistente para de falar
-          }
-        } catch (error) {
-          console.error("Erro ao processar mensagem do DataChannel:", error);
-        }
-      });
+  try {
+    const message = JSON.parse(event.data);
+    console.log("Mensagem recebida:", message); // Adicionado para depuração
+    
+    if (message.type === "assistant.speaking") {
+      console.log("Assistente está falando...");
+      setIsAssistantSpeaking(true); // Ativa o brilho
+    } else if (message.type === "assistant.silence") {
+      console.log("Assistente está em silêncio...");
+      setIsAssistantSpeaking(false); // Desativa o brilho
+    }
+  } catch (error) {
+    console.error("Erro ao processar mensagem do DataChannel:", error);
+  }
+});
 
 
       const offer = await pc.createOffer();
