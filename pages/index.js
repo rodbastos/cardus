@@ -150,7 +150,15 @@ export default function Home() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.logoContainer}>
+      <div
+        style={{
+          ...styles.logoContainer,
+          boxShadow: isAssistantSpeaking
+            ? "0 0 20px 5px rgba(0, 255, 255, 0.8)"
+            : "none",
+          transition: "box-shadow 0.3s ease-in-out",
+        }}
+      >
         <TargetTealLogo isSpeaking={isAssistantSpeaking} />
       </div>
 
