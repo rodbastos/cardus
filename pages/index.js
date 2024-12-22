@@ -84,7 +84,7 @@ export default function Home() {
               O objetivo desse trabalho é fazer um mapeamento dessas narrativas. 
               Tudo será anonimizado, então tranquilize o entrevistado.
               
-              Seu trabalho não é sugerir soluções, apenas coletar histórias.
+              Comece perguntando sobre sua rotina ou tipo de trabalho, depois pergunte por histórias. Seu trabalho não é sugerir soluções, apenas coletar histórias. Não interrompa o usuário. 
             `,
             voice: "ash", // Definindo a voz para 'Ash',
           },
