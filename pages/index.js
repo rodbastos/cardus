@@ -152,7 +152,13 @@ export default function Home() {
     <div style={styles.container}>
       <div
         className={isAssistantSpeaking ? "logo-speaking" : "logo-default"}
-        style={styles.logoContainer}
+        style={{
+          ...styles.logoContainer,
+          boxShadow: isAssistantSpeaking
+            ? "0 0 20px 5px rgba(0, 255, 255, 0.8)"
+            : "none",
+          transition: "box-shadow 0.3s ease-in-out",
+        }}
       >
         <TargetTealLogo isSpeaking={isAssistantSpeaking} />
       </div>
@@ -186,6 +192,17 @@ export default function Home() {
             }}
           >
             Encerrar Entrevista
+          </button>
+
+          {/* Botão temporário para alternar brilho */}
+          <button
+            onClick={() => setIsAssistantSpeaking((prev) => !prev)}
+            style={{
+              ...styles.button,
+              backgroundColor: isAssistantSpeaking ? "#AAFFAA" : "#AAAAFF",
+            }}
+          >
+            Alternar Brilho
           </button>
         </div>
 
@@ -264,3 +281,14 @@ const styles = {
   },
 };
 
+// Add these styles to your CSS file
+/* 
+.logo-speaking {
+  box-shadow: 0 0 20px 5px rgba(0, 255, 255, 0.8);
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+.logo-default {
+  transition: box-shadow 0.3s ease-in-out;
+}
+*/
