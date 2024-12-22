@@ -91,7 +91,7 @@ export default function Home() {
             }
             speakingTimeoutRef.current = setTimeout(() => {
               setIsAssistantSpeaking(false);
-            }, 2000); // Duração extra de 2 segundos para acomodar o atraso do áudio
+            }, 4000); // Duração extra de 2 segundos para acomodar o atraso do áudio
           }
         } catch (error) {
           console.error("Erro ao processar mensagem do DataChannel:", error);
