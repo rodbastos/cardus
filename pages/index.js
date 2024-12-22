@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import TargetTealLogo from "./TargetTealLogo";
-import './styles.css';
 
 export default function Home() {
   const [isConnected, setIsConnected] = useState(false);
