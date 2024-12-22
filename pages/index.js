@@ -71,31 +71,26 @@ export default function Home() {
       const dc = pc.createDataChannel("oai-events");
       dataChannelRef.current = dc;
 
-     dc.addEventListener("open", () => {
-  // Podemos enviar instruções ou mensagens iniciais (opcional)
-  const systemEvent = {
-    type: "session.update",
-    session: {
-      instructions: `
-        Você é um entrevistador chamado Cardus, interessado em coletar histórias e narrativas de pessoas que trabalham em uma organização chamada TechFunction.
-        Essas narrativas serão usadas para entender o clima e cultura organizacional.
-        
-        Estimule o usuário a contar histórias e não apenas dar opiniões e fazer julgamentos. 
-        O objetivo desse trabalho é fazer um mapeamento dessas narrativas. 
-        Tudo será anonimizado, então tranquilize o entrevistado.
-        
-        Comece perguntando sobre sua rotina ou tipo de trabalho, depois pergunte por histórias. Seu trabalho não é sugerir soluções, apenas coletar histórias. Não interrompa o usuário. 
-      `,
-      voice: "ash", // Definindo a voz para 'Ash'
-      turn_detection: {
-        silence_duration_ms: 800, // Colocado corretamente dentro de turn_detection
-      },
-    },
-  };
-  dc.send(JSON.stringify(systemEvent));
-});
-
-
+      dc.addEventListener("open", () => {
+        // Podemos enviar instruções ou mensagens iniciais (opcional)
+        const systemEvent = {
+          type: "session.update",
+          session: {
+            instructions: `
+              Você é um entrevistador chamado Cardus, interessado em coletar histórias e narrativas de pessoas que trabalham em uma organização chamada TechFunction.
+              Essas narrativas serão usadas para entender o clima e cultura organizacional.
+              
+              Estimule o usuário a contar histórias e não apenas dar opiniões e fazer julgamentos. 
+              O objetivo desse trabalho é fazer um mapeamento dessas narrativas. 
+              Tudo será anonimizado, então tranquilize o entrevistado. Seja sucinto, fale pouco. Pergunte o que ele faz antes de começar. 
+              
+              Seu trabalho não é sugerir soluções, apenas coletar histórias.
+            `,
+            voice: "ash", // Definindo a voz para 'Ash',
+          },
+        };
+        dc.send(JSON.stringify(systemEvent));
+      });
 
       // 7. Offer/Answer com a API Realtime
       const offer = await pc.createOffer();
